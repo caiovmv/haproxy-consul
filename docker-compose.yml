@@ -1,0 +1,80 @@
+version: '3'
+
+volumes:
+  consul-data: {}
+  consul-config: {}
+
+services:
+  
+  consul:
+    image: gliderlabs/consul-server:latest
+    container_name: consul
+    hostname: consul
+    ports:
+      - "8500:8500"
+      - "8300:8300"
+      - "8301:8301"
+      - "8301:8301/udp"
+      - "8302:8302"
+      - "8302:8302/udp"
+      - "8400:8400"
+      - "8600:8600"
+      - "8600:53/udp"
+    expose:
+      - "8500"
+      - "8300"
+      - "8301"
+      - "8301/udp"
+      - "8302"
+      - "8302/udp"
+      - "8400"
+      - "8600"
+    environment:
+      - TZ=America/Sao_Paulo
+      - SERVICE_NAME=consul
+      - SERVICE_TAGS=dev
+      - CONSUL_TOKEN=asdlkj10
+    volumes:
+      - ./consul-data:/consul/data
+      - ./consul-config:/consul/config
+    command: "-node=local -advertise=192.168.15.11 -server -bootstrap -client 0.0.0.0 -dc localhost -domain=consul.localhost"
+    # -retry-join ${MY_IP} -retry-join 10.2.20.231 -retry-join 10.2.20.241"
+
+  registrator:
+    image: gliderlabs/registrator:latest
+    container_name: registrator
+    hostname: localhost
+    links:
+      - consul
+    depends_on:
+      - consul
+    volumes:
+      - /var/run/docker.sock:/tmp/docker.sock
+    command: "-ip 192.168.15.11 consul://192.168.15.11:8500"
+
+  haproxy:
+    image: haproxy-local:latest
+    container_name: haproxy-local
+    hostname: haproxy-local
+    links:
+      - consul
+    depends_on:
+      - consul
+      - registrator
+    ports:
+      - "80:80"
+      - "443:443"
+      - "1936:1936"
+    expose:
+      - 80
+      - 443
+      - 1936
+    environment:
+      - TZ=America/Sao_Paulo
+      - SERVICE_NAME=haproxy
+      - SERVICE_TAGS=dev
+      - HAPROXY_DOMAIN=localhost
+      - HAPROXY_MODE=consul
+      - CONSUL_CONNECT=192.168.15.11:8500
+
+    
