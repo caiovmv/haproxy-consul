@@ -1,0 +1,45 @@
+global
+    maxconn 512
+    debug
+    # Recommended SSL ciphers as per https://hynek.me/articles/hardening-your-web-servers-ssl-ciphers/
+    ssl-default-bind-options no-sslv3
+    ssl-default-bind-ciphers ECDH+AESGCM:DH+AESGCM:ECDH+AES256:DH+AES256:ECDH+AES128:DH+AES:ECDH+3DES:DH+3DES:RSA+AESGCM:RSA+AES:RSA+3DES:!aNULL:!MD5:!DSS
+
+    ssl-default-server-options no-sslv3
+    ssl-default-server-ciphers ECDH+AESGCM:DH+AESGCM:ECDH+AES256:DH+AES256:ECDH+AES128:DH+AES:ECDH+3DES:DH+3DES:RSA+AESGCM:RSA+AES:RSA+3DES:!aNULL:!MD5:!DSS
+    tune.ssl.default-dh-param 2048
+
+defaults
+    mode http
+    option forwardfor
+    option http-server-close
+    timeout connect 5000ms
+    timeout client 5000ms
+    timeout server 5000ms
+
+### HTTP(S) frontend ###
+frontend www
+    bind *:80
+    
+
+    reqadd X-Forwarded-Proto:\ http if !{ ssl_fc }
+    reqadd X-Forwarded-Proto:\ https if { ssl_fc }
+    
+
+    # Generated automatically by consul-template
+
+    acl host_consul hdr_beg(host) -i consul.haproxy.service.consul
+    use_backend consul_backend if host_consul
+
+
+
+
+
+### Consul-configured backend services ###
+
+backend consul_backend
+
+   server local-8300 192.168.15.11:8300
+
+
+

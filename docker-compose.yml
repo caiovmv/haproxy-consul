@@ -3,6 +3,7 @@ version: '3'
 volumes:
   consul-data: {}
   consul-config: {}
+  consul-storage: {}
 
 services:
   
@@ -34,10 +35,12 @@ services:
       - SERVICE_NAME=consul
       - SERVICE_TAGS=dev
       - CONSUL_TOKEN=asdlkj10
+      #- CONSUL_ALLOW_PRIVILEGED_PORTS=' consul -dns-port=53 -recursor=8.8.8.8'
     volumes:
-      - ./consul-data:/consul/data
-      - ./consul-config:/consul/config
-    command: "-node=local -advertise=192.168.15.11 -server -bootstrap -client 0.0.0.0 -dc localhost -domain=consul.localhost"
+      - ./data/consul/data:/consul/data
+      - ./data/consul/config:/consul/config
+      - ./data/consul/storage:/data
+    command: "-node=local -advertise=192.168.15.11 -server -bootstrap-expect=1 -client 0.0.0.0 -dc localhost -domain=consul.localhost -recursor=8.8.8.8"
     # -retry-join ${MY_IP} -retry-join 10.2.20.231 -retry-join 10.2.20.241"
 
   registrator:
@@ -53,7 +56,7 @@ services:
     command: "-ip 192.168.15.11 consul://192.168.15.11:8500"
 
   haproxy:
-    image: haproxy-local:latest
+    build: .
     container_name: haproxy-local
     hostname: haproxy-local
     links:
@@ -76,5 +79,10 @@ services:
       - HAPROXY_DOMAIN=localhost
       - HAPROXY_MODE=consul
       - CONSUL_CONNECT=192.168.15.11:8500
+      - CONSUL_LOGLEVEL=debug
+#      - CONSUL_CONFIG=/consul-template/config.d/consul.tmpl
+#    volumes:
+#      - ./template/consul.tmpl:/consul-template/config.d/consul.tmpl
+
 
     
