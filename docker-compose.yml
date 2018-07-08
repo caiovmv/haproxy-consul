@@ -9,58 +9,34 @@ services:
   
   consul:
     image: gliderlabs/consul-server:latest
+    network_mode: "host"
     container_name: consul
     hostname: consul
-    ports:
-      - "8500:8500"
-      - "8300:8300"
-      - "8301:8301"
-      - "8301:8301/udp"
-      - "8302:8302"
-      - "8302:8302/udp"
-      - "8400:8400"
-      - "8600:8600"
-      - "8600:53/udp"
-    expose:
-      - "8500"
-      - "8300"
-      - "8301"
-      - "8301/udp"
-      - "8302"
-      - "8302/udp"
-      - "8400"
-      - "8600"
     environment:
       - TZ=America/Sao_Paulo
       - SERVICE_NAME=consul
       - SERVICE_TAGS=dev
       - CONSUL_TOKEN=asdlkj10
-      #- CONSUL_ALLOW_PRIVILEGED_PORTS=' consul -dns-port=53 -recursor=8.8.8.8'
     volumes:
       - ./data/consul/data:/consul/data
       - ./data/consul/config:/consul/config
       - ./data/consul/storage:/data
-    command: "-node=local -advertise=192.168.15.11 -server -bootstrap-expect=1 -client 0.0.0.0 -dc localhost -domain=consul.localhost -recursor=8.8.8.8"
-    # -retry-join ${MY_IP} -retry-join 10.2.20.231 -retry-join 10.2.20.241"
+    command: "-node=local -advertise=$MY_IP -bind $MY_IP -server -bootstrap-expect=1 -client 0.0.0.0 -dc localhost" # -retry-join ${MY_IP} -retry-join 10.2.20.231 -retry-join 10.2.20.241"
 
   registrator:
     image: gliderlabs/registrator:latest
     container_name: registrator
     hostname: localhost
-    links:
-      - consul
     depends_on:
       - consul
     volumes:
       - /var/run/docker.sock:/tmp/docker.sock
-    command: "-ip 192.168.15.11 consul://192.168.15.11:8500"
+    command: "-ip $MY_IP consul://$MY_IP:8500"
 
   haproxy:
     build: .
     container_name: haproxy-local
     hostname: haproxy-local
-    links:
-      - consul
     depends_on:
       - consul
       - registrator
@@ -69,16 +45,16 @@ services:
       - "443:443"
       - "1936:1936"
     expose:
-      - 80
-      - 443
-      - 1936
+      - "80"
+      - "443"
+      - "1936"
     environment:
       - TZ=America/Sao_Paulo
       - SERVICE_NAME=haproxy
       - SERVICE_TAGS=dev
       - HAPROXY_DOMAIN=localhost
       - HAPROXY_MODE=consul
-      - CONSUL_CONNECT=192.168.15.11:8500
+      - CONSUL_CONNECT=$MY_IP:8500
       - CONSUL_LOGLEVEL=debug
 #      - CONSUL_CONFIG=/consul-template/config.d/consul.tmpl
 #    volumes:

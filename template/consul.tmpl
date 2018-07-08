@@ -1,5 +1,5 @@
 global
-    maxconn {{or (key "service/haproxy/maxconn") 256}}
+    maxconn {{or (key "service/haproxy/maxconn") 1024}}
     debug
     # Recommended SSL ciphers as per https://hynek.me/articles/hardening-your-web-servers-ssl-ciphers/
     ssl-default-bind-options no-sslv3
@@ -11,15 +11,25 @@ global
 
 defaults
     mode http
+    compression algo gzip
+    compression type {{or (key "service/haproxy/compression/type") "text/html text/plain text/css"}}
     option forwardfor
     option http-server-close
-    timeout connect {{or (key "service/haproxy/timeouts/connect") "5000ms"}}
-    timeout client {{or (key "service/haproxy/timeouts/client") "50000ms"}}
-    timeout server {{or (key "service/haproxy/timeouts/server") "50000ms"}}
+    option http-buffer-request
+    option nolinger
+    option httpclose
+    option abortonclose
+    timeout http-request {{or (key "service/haproxy/timeouts/http-request") "10s"}}
+    timeout queue {{or (key "service/haproxy/timeouts/queue") "80s"}}
+    timeout connect {{or (key "service/haproxy/timeouts/connect") "5s"}}
+    timeout client {{or (key "service/haproxy/timeouts/client") "60s"}}
+    timeout server {{or (key "service/haproxy/timeouts/server") "60s"}}
+    retries 2
 
 ### HTTP(S) frontend ###
 frontend www
     bind *:80
+
     {{ if env "HAPROXY_USESSL" }}bind *:443 ssl crt /haproxy/ssl.crt{{ end }}
 
     reqadd X-Forwarded-Proto:\ http if !{ ssl_fc }
@@ -39,12 +49,27 @@ frontend stats
     bind *:1936
     mode http
     use_backend stats
+    stats auth {{or (key "service/haproxy/auth/user") "admin"}}:{{or (key "service/haproxy/auth/password") "admin"}}
+
 {{ end }}
 
 
 ### Consul-configured backend services ###
 {{ range services }}
 backend {{ .Name }}_backend
+  # Detect an ApacheKiller-like Attack
+  acl weirdrangehdr hdr_cnt(Range) gt 10
+  # Clean up the request
+  reqidel ^Range if weirdrangehdr
+  # Setup stick table
+  stick-table type ip size 1k expire 30s store gpc0
+  # Configure the DoS src
+  acl MARKED src_get_gpc0(ft_http) gt 0
+  # tarpit attackers if src_DoS
+  use_backend bk_tarpit if MARKED
+  # If not blocked, track the connection
+  tcp-request connection track-sc1 src if ! MARKED
+
 {{ range service .Name }}
    server {{ .Node }}-{{ .Port }} {{ .Address }}:{{ .Port }}{{ end }}
 {{ end }}
