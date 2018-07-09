@@ -23,7 +23,12 @@ ADD template/consul.tmpl /consul-template/template.d/
 
 ADD reload.sh /reload.sh
 ADD launch.sh /launch.sh
+ADD sleep.sh /sleep.sh
 
+RUN chmod +x /reload.sh /launch.sh /sleep.sh
 RUN apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+
+# For Debug Purpouses
+#CMD ["/sleep.sh"]
 
 CMD ["/launch.sh"]

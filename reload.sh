@@ -13,8 +13,6 @@ CONSUL_MINWAIT=${CONSUL_MINWAIT:-2s}
 CONSUL_MAXWAIT=${CONSUL_MAXWAIT:-10s}
 CONSUL_LOGLEVEL=${CONSUL_LOGLEVEL:-info}
 
-
-
 function update_configuration {
     if [[ -n "${CONSUL_TOKEN}" ]]; then
         ctargs="${ctargs} -token ${CONSUL_TOKEN}"
@@ -42,11 +40,11 @@ function update_configuration {
     echo "Dumped HA Proxy config to temporary location."
 }
 function reload_configuration {
-    if [[ "$(/usr/sbin/haproxy -c -f /tmp/haproxy.cfg)" ]]; then
+    if [[ "$(/usr/local/sbin/haproxy -c -f /tmp/haproxy.cfg)" ]]; then
         echo "Configuration valid. Going to reload HA Proxy."
         mv /tmp/haproxy.cfg /haproxy/haproxy.cfg
         nl-qdisc-add --dev=lo --parent=1:4 --id=40: --update plug --buffer &> /dev/null
-        /usr/sbin/haproxy -f /haproxy/haproxy.cfg -D -p "/var/run/haproxy.pid" -sf "${PID}"  || return 1
+        /usr/local/sbin/haproxy -f /haproxy/haproxy.cfg -D -p "/var/run/haproxy.pid" -sf "${PID}"  || return 1
         nl-qdisc-add --dev=lo --parent=1:4 --id=40: --update plug--release-indefinite &> /dev/null
         return 0
     else

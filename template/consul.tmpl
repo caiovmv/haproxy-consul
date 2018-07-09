@@ -11,8 +11,10 @@ global
 
 defaults
     mode http
+    {{ if env "HAPROXY_COMPRESSION" }}
     compression algo gzip
-    compression type {{or (key "service/haproxy/compression/type") "text/html text/plain text/css"}}
+    compression type {{or (key "service/haproxy/compression/type") "text/html text/plain text/css application/json"}}
+    {{ end }}
     option forwardfor
     option http-server-close
     option http-buffer-request
@@ -26,7 +28,31 @@ defaults
     timeout server {{or (key "service/haproxy/timeouts/server") "60s"}}
     retries 2
 
+### HTTP(S) Stats ###
+{{ if env "HAPROXY_STATS" }}
+frontend stats
+    bind *:1936
+    mode http
+    use_backend stats
+    stats auth {{or (key "service/haproxy/auth/user") "admin"}}:{{or (key "service/haproxy/auth/password") "admin"}}
+
+backend stats
+    stats enable
+    stats hide-version
+    stats refresh 5s
+    stats scope .
+    stats realm {{or (key "service/haproxy/stats/realm") "Haproxy Statistics" }}
+    stats uri {{or (key "service/haproxy/stats/uri") "/" }}
+{{ end }}
+
+
 ### HTTP(S) frontend ###
+
+#bind 0.0.0.0:443 ssl crt /etc/haproxy/certs/ 
+#cat private.key >> fullchain.pem
+# ou
+# cat cert.pem privkey.pem chain.pem > certificado_haproxy.pem
+
 frontend www
     bind *:80
 
@@ -44,43 +70,9 @@ frontend www
     use_backend {{ .Name }}_backend if host_{{ .Name }}
 {{ end }}
 
-{{ if env "HAPROXY_STATS" }}
-frontend stats
-    bind *:1936
-    mode http
-    use_backend stats
-    stats auth {{or (key "service/haproxy/auth/user") "admin"}}:{{or (key "service/haproxy/auth/password") "admin"}}
-
-{{ end }}
-
-
 ### Consul-configured backend services ###
 {{ range services }}
 backend {{ .Name }}_backend
-  # Detect an ApacheKiller-like Attack
-  acl weirdrangehdr hdr_cnt(Range) gt 10
-  # Clean up the request
-  reqidel ^Range if weirdrangehdr
-  # Setup stick table
-  stick-table type ip size 1k expire 30s store gpc0
-  # Configure the DoS src
-  acl MARKED src_get_gpc0(ft_http) gt 0
-  # tarpit attackers if src_DoS
-  use_backend bk_tarpit if MARKED
-  # If not blocked, track the connection
-  tcp-request connection track-sc1 src if ! MARKED
-
 {{ range service .Name }}
    server {{ .Node }}-{{ .Port }} {{ .Address }}:{{ .Port }}{{ end }}
-{{ end }}
-
-{{ if env "HAPROXY_STATS" }}
-
-backend stats
-    stats enable
-    stats hide-version
-    stats refresh 5s
-    stats scope .
-    stats realm {{ or (env "HAPROXY_STATS_TITLE") "Haproxy Statistics" }}
-    stats uri {{ or (env "HAPROXY_STATS_URI") "/" }}
 {{ end }}

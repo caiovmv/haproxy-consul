@@ -1,1 +1,0 @@
-{"Token":"","Service":{"ID":"localhost:consul:53:udp","Service":"consul-53","Tags":["dev","udp"],"Address":"192.168.15.11","Port":8600,"EnableTagOverride":false,"CreateIndex":0,"ModifyIndex":0}}

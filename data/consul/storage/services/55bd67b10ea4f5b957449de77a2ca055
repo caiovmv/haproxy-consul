@@ -1,1 +1,1 @@
-{"Token":"","Service":{"ID":"localhost:consul:8301:udp","Service":"consul-8301","Tags":["dev","udp"],"Address":"192.168.15.11","Port":8301,"EnableTagOverride":false,"CreateIndex":0,"ModifyIndex":0}}
+{"Token":"","Service":{"ID":"localhost:consul:8301:udp","Service":"consul-8301","Tags":["udp"],"Address":"192.168.15.11","Port":8301,"EnableTagOverride":false,"CreateIndex":0,"ModifyIndex":0}}

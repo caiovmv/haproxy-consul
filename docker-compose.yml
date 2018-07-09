@@ -9,19 +9,30 @@ services:
   
   consul:
     image: gliderlabs/consul-server:latest
-    network_mode: "host"
     container_name: consul
     hostname: consul
     environment:
       - TZ=America/Sao_Paulo
       - SERVICE_NAME=consul
-      - SERVICE_TAGS=dev
-      - CONSUL_TOKEN=asdlkj10
+    ports:
+      - "8500:8500"
+      - "8300:8300"
+      - "8301:8301/udp"
+      - "8302:8302/udp"
+      - "8400:8400"
+      - "8600:8600/udp"
+    expose:
+      - "8500"
+      - "8300"
+      - "8301/udp"
+      - "8302/udp"
+      - "8400"
+      - "8600/udp"
     volumes:
       - ./data/consul/data:/consul/data
       - ./data/consul/config:/consul/config
       - ./data/consul/storage:/data
-    command: "-node=local -advertise=$MY_IP -bind $MY_IP -server -bootstrap-expect=1 -client 0.0.0.0 -dc localhost" # -retry-join ${MY_IP} -retry-join 10.2.20.231 -retry-join 10.2.20.241"
+    command: "-node=local -advertise=192.168.15.11 -server -bootstrap -client 0.0.0.0 -ui -dc localhost"
 
   registrator:
     image: gliderlabs/registrator:latest
@@ -31,7 +42,7 @@ services:
       - consul
     volumes:
       - /var/run/docker.sock:/tmp/docker.sock
-    command: "-ip $MY_IP consul://$MY_IP:8500"
+    command: "-ip 192.168.15.11 consul://192.168.15.11:8500"
 
   haproxy:
     build: .
@@ -51,14 +62,13 @@ services:
     environment:
       - TZ=America/Sao_Paulo
       - SERVICE_NAME=haproxy
-      - SERVICE_TAGS=dev
-      - HAPROXY_DOMAIN=localhost
+      - HAPROXY_COMPRESSION=true
+      - HAPROXY_STATS=true
+#      - HAPROXY_STATS_TITLE="Haproxy Stats"
+#      - HAPROXY_STATS_URI="/stats"
       - HAPROXY_MODE=consul
-      - CONSUL_CONNECT=$MY_IP:8500
+#      - HAPROXY_DOMAIN=haproxy.service.consul
+      - CONSUL_CONNECT=192.168.15.11:8500
       - CONSUL_LOGLEVEL=debug
-#      - CONSUL_CONFIG=/consul-template/config.d/consul.tmpl
-#    volumes:
-#      - ./template/consul.tmpl:/consul-template/config.d/consul.tmpl
-
 
     
