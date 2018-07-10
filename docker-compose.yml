@@ -8,7 +8,7 @@ volumes:
 services:
   
   consul:
-    image: gliderlabs/consul-server:latest
+    image: consul:1.2.0
     container_name: consul
     hostname: consul
     environment:
@@ -32,7 +32,26 @@ services:
       - ./data/consul/data:/consul/data
       - ./data/consul/config:/consul/config
       - ./data/consul/storage:/data
-    command: "-node=local -advertise=192.168.15.11 -server -bootstrap -client 0.0.0.0 -ui -dc localhost"
+    command: " agent -node=local -advertise=192.168.15.11 -server -bootstrap-expect=1 -client=0.0.0.0 -ui -datacenter=localhost" #-domain
+
+  vault:
+    container_name: vault.server
+    image: vault:0.10.3
+    ports:
+      - "8200:8200"
+      - "8201:8201"
+      - "444:444"
+    volumes:
+      - ./data/vault/etc/vault.server/config:/mnt/vault/config
+      - ./data/vault/vault.server/data:/mnt/vault/data
+      - ./data/vault/vault.server/logs:/mnt/vault/logs
+    cap_add:
+      - IPC_LOCK
+    environment:
+      - TZ=America/Sao_Paulo
+      - SERVICE_NAME=vault
+      - VAULT_LOCAL_CONFIG={"backend":{"consul":{"address":"192.168.15.11:8500","advertise_addr":"http://192.168.15.11", "path":"vault/"}},"listener":{"tcp":{"address":"0.0.0.0:8200","tls_disable":1}}}
+    command: server
 
   registrator:
     image: gliderlabs/registrator:latest
@@ -62,12 +81,11 @@ services:
     environment:
       - TZ=America/Sao_Paulo
       - SERVICE_NAME=haproxy
+      - VAULT_TOKEN=00afb71f-3142-ae7b-f433-65bbd45724c2
       - HAPROXY_COMPRESSION=true
       - HAPROXY_STATS=true
-#      - HAPROXY_STATS_TITLE="Haproxy Stats"
-#      - HAPROXY_STATS_URI="/stats"
       - HAPROXY_MODE=consul
-#      - HAPROXY_DOMAIN=haproxy.service.consul
+     # - HAPROXY_DOMAIN=haproxy.service.consul
       - CONSUL_CONNECT=192.168.15.11:8500
       - CONSUL_LOGLEVEL=debug
 

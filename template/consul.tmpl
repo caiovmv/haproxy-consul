@@ -1,5 +1,5 @@
 global
-    maxconn {{or (key "service/haproxy/maxconn") 1024}}
+    maxconn {{keyOrDefault "service/haproxy/maxconn" "1024"}}
     debug
     # Recommended SSL ciphers as per https://hynek.me/articles/hardening-your-web-servers-ssl-ciphers/
     ssl-default-bind-options no-sslv3
@@ -12,8 +12,8 @@ global
 defaults
     mode http
     {{ if env "HAPROXY_COMPRESSION" }}
-    compression algo gzip
-    compression type {{or (key "service/haproxy/compression/type") "text/html text/plain text/css application/json"}}
+    compression algo {{keyOrDefault "service/haproxy/compression/algo" "gzip"}}
+    compression type {{keyOrDefault "service/haproxy/compression/type" "text/html text/plain text/css application/json"}}
     {{ end }}
     option forwardfor
     option http-server-close
@@ -21,11 +21,11 @@ defaults
     option nolinger
     option httpclose
     option abortonclose
-    timeout http-request {{or (key "service/haproxy/timeouts/http-request") "10s"}}
-    timeout queue {{or (key "service/haproxy/timeouts/queue") "80s"}}
-    timeout connect {{or (key "service/haproxy/timeouts/connect") "5s"}}
-    timeout client {{or (key "service/haproxy/timeouts/client") "60s"}}
-    timeout server {{or (key "service/haproxy/timeouts/server") "60s"}}
+    timeout http-request {{keyOrDefault "service/haproxy/timeouts/http-request" "7s"}}
+    timeout queue {{keyOrDefault "service/haproxy/timeouts/queue" "10s"}}
+    timeout connect {{keyOrDefault "service/haproxy/timeouts/connect" "5s"}}
+    timeout client {{keyOrDefault "service/haproxy/timeouts/client" "50s"}}
+    timeout server {{keyOrDefault "service/haproxy/timeouts/server" "50s"}}
     retries 2
 
 ### HTTP(S) Stats ###
@@ -34,15 +34,16 @@ frontend stats
     bind *:1936
     mode http
     use_backend stats
-    stats auth {{or (key "service/haproxy/auth/user") "admin"}}:{{or (key "service/haproxy/auth/password") "admin"}}
-
+    {{with secret "secret/service/haproxy/stats/auth" }}
+    stats auth {{keyOrDefault ".Data.username" "admin"}}:{{keyOrDefault ".Data.password" "admin"}}
+    {{end}}
 backend stats
     stats enable
     stats hide-version
     stats refresh 5s
     stats scope .
-    stats realm {{or (key "service/haproxy/stats/realm") "Haproxy Statistics" }}
-    stats uri {{or (key "service/haproxy/stats/uri") "/" }}
+    stats realm {{keyOrDefault "service/haproxy/stats/realm" "Haproxy Statistics" }}
+    stats uri {{keyOrDefault "service/haproxy/stats/uri" "/" }}
 {{ end }}
 
 
